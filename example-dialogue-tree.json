@@ -1,0 +1,21 @@
+{
+    "1": {
+        "text": "I am sad.",
+        "responses": [
+            {"text": "Why?", "index": "2"},
+            {"text": "Good.", "index": "3"},
+            {"text": "Wow so toxic. Fake news goodbye"}
+        ]
+    },
+
+    "2": {
+        "text": "Because I am not happy.",
+        "responses": [
+            {"text": "Oh, okay."}
+        ]
+    },
+
+    "3": {
+        "text": "Wow, so mean!"
+    }
+}

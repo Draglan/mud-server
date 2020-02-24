@@ -1,0 +1,177 @@
+{
+    "accounts": [
+        {
+            "id": 1,
+            "username": "admin",
+            "password": "admin",
+            "roomId": 2,
+            "currentExp": 0,
+            "maxExp": 100,
+            "level": 1,
+            "attack": 0,
+            "defense": 0,
+            "spellPower": 0,
+            "spellDefense": 0,
+            "maxHp": 100,
+            "hp": 100,
+            "maxMana": 100,
+            "mana": 100,
+            "maxStamina": 100,
+            "stamina": 100
+        },
+        {
+            "id": 2,
+            "username": "a",
+            "password": "a",
+            "roomId": 2
+        }
+    ],
+    "rooms": [
+        {
+            "id": 1,
+            "name": "Fusion360 Office",
+            "description": "As you enter the room, a wave of warm spring air washes over your senses. Though the floor is carpeted, your feet feel as though they are sliding into warm sand with each step. Chirp! Chirp! goes a jolly bluebird, who, without hesitation, promptly lands on your shoulder and sings a soft lullaby into your ear, all the while your pockets bulge with the sudden weight of fresh money. You begin to ponder the sudden oneness you feel with the world. Ah, what's the word - harmony? Singularity? No. It is Fusion. SCI Fusion360, LLC.",
+            "exits": {
+                "north": 2,
+                "south": 3,
+                "east": 4
+            },
+            "objects": [
+                1
+            ],
+            "npcs": [
+                1,
+                1
+            ]
+        },
+        {
+            "id": 2,
+            "name": "William's Office",
+            "description": "After only a month on the job, William Wentworth was gifted with a 300sqft corner office for his incredible genius and contribution. Straight ahead is a floor-to-ceiling window overlooking William Street, named in his honor, where a tall statue of the man stands proudly over the road. To the left is a series of shelves containing a variety of awards, and to the right lies William's oak desk. \"This must be a marvelous human being,\" you say aloud, \"for I can feel his radiance and warmth emanating from this room.\" Your eyes suddenly tear up as a strange feeling overcomes your body: \"All hail William! All hail William!\"",
+            "exits": {
+                "south": 1,
+                "down": 6
+            }
+        },
+        {
+            "id": 3,
+            "name": "Outside Hallway",
+            "description": "Bleak and barren, the hallway outside of Fusion360 is like most places outside the office: meaningless. As your bones begin to ache with the torture of being gone, you decide to go no further.",
+            "exits": {
+                "north": 1
+            },
+            "objects": [
+                1
+            ]
+        },
+        {
+            "id": 4,
+            "name": "The Great Plains",
+            "description": "For miles around there is nothing but glorious carpet and the scent of fresh office air. It is only after walking in a happy daze for a few minutes that you realize the Four Great Pillars that surround you. Each pillar rises seemingly infinite into the sky, and in their great height they seem to lean towards you.",
+            "exits": {
+                "west": 1,
+                "east": 5
+            }
+        },
+        {
+            "id": 5,
+            "name": "The Eastern Desks",
+            "description": "If you were wondering where everyone was, you wonder no longer. As you emerge from the Plains, you are pleased to find a neat assortment of 32 desks, each a child's height in width, where dozens of pale programmers clack away at their keyboards. Wait! Out of the lot, one lonely desk stands out to you. Walking closer, you find it is not a desk at all, but a shrine erected in the memory of William Wentworth's time before his promotion. There is a gold plaque: \"Dedicated to the Great William: He who slays the Bugs, and He who forges the Framework. He drinks from the Mugs, and He saves us from the day's Work. If any should oppose him, we will know; if any should assault him, their heads will go. ALL HAIL THE GREAT WILLIAM.\".",
+            "exits": {
+                "west": 4
+            },
+            "npcs": [
+                2
+            ]
+        },
+        {
+            "id": 6,
+            "name": "William's Secret Room of Mystery and Doom",
+            "description": "Shh, no one knows it's here. But do not feel fear, for William is always near.",
+            "exits": {
+                "up": 2
+            }
+        }
+    ],
+    "objects": [
+        {
+            "id": 1,
+            "name": "Broken Lamp",
+            "description": "It used to be lit. Now it's just shit."
+        }
+    ],
+    "npcs": [
+        {
+            "id": 1,
+            "name": "Pale Programmer",
+            "description": "It looks like she hasn't seen the sun in a few years.",
+            "script": "pale-programmer.js",
+            "dialogueTree": {
+                "1": {
+                    "text": "Stop! I'm busy. This damn thing isn't working and the deadline is tomorrow.",
+                    "responses": [
+                        {
+                            "text": "Wait, let me look...",
+                            "index": "2"
+                        },
+                        {
+                            "text": "Sorry. Bye."
+                        }
+                    ]
+                },
+                "2": {
+                    "text": "Wow, you figured it out! Good job! Here, have my position.",
+                    "responses": [
+                        {
+                            "text": "No problem."
+                        },
+                        {
+                            "text": "Sure thing. Oh, want to grab lunch sometime?",
+                            "index": "3"
+                        }
+                    ]
+                },
+                "3": {
+                    "text": "Stop! I'm busy. This damn thing isn't working and the deadline is tomorrow.",
+                    "responses": [
+                        {
+                            "text": "Um, didn't you already say that?",
+                            "index": 4
+                        },
+                        {
+                            "text": "Oh, uh, okay."
+                        }
+                    ]
+                },
+                "4": {
+                    "text": "Oh no, you've discovered my secret. I am a robot. Prepare to die."
+                },
+                "firstIndex": "1"
+            },
+            "goodbyeMsg": "See ya later, sucka!"
+        },
+        {
+            "id": 2,
+            "name": "Living Compiler Error",
+            "description": "A compiler error come to life.",
+            "dialogueTree": {
+                "1": {
+                    "text": "Error: Invalid talk command on line 1. Potential solutions: (1) Throw yourself out the window."
+                },
+                "firstIndex": "1"
+            }
+        }
+    ],
+    "items": [
+        {
+            "id": 1,
+            "name": "Leather Cap",
+            "type": "equippable",
+            "equipmentSlot": "helmet",
+            "attack": 0,
+            "defense": 10,
+            "spellPower": 0,
+            "spellDefense": 0
+        }
+    ]
+}

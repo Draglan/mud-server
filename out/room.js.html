@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: room.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: room.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const EventEmitter = require('events');
+const { renderLine, renderText } = require('./render-text');
+
+/**
+ * The directions that Players can move:
+ *  - north
+ *  - east
+ *  - south
+ *  - west
+ *  - up
+ *  - down
+ */
+const directions =
+{
+    north: 'north',
+    east: 'east',
+    south: 'south',
+    west: 'west',
+    up: 'up',
+    down: 'down'
+};
+
+/**
+ * Represents a room in the game world.
+ */
+class Room extends EventEmitter
+{
+    /**
+     * Create a new Room object.
+     * @param {number} id The ID of the Room.
+     * @param {string} name The name of the Room.
+     * @param {string} desc The Room's description.
+     */
+    constructor(id, name, desc)
+    {
+        super();
+        this.id          = id;
+        this.name        = name;
+        this.description = desc;
+        this.actors      = [];
+        this.exits       = {};
+        this.objects     = [];
+    }
+
+    /**
+     * Add an Actor to the room, removing them from the Room they were in
+     * previously.
+     * @param {Actor} actor The Actor to add to the room.
+     */
+    addActor(actor)
+    {   
+        let prevRoom = null;
+
+        // Remember their previous Room, if any, and remove the Player
+        // from their old Room.
+        if (actor.room)
+        {
+            prevRoom = actor.room;
+            actor.room.removeActor(actor, this);
+        }
+        
+        actor.room = this;
+        this.actors.push(actor);
+
+        // Emit leave and join events.
+        if (prevRoom)
+            prevRoom.emit(Room.onActorLeave, {room: prevRoom, nextRoom: this, actor: actor});
+
+        this.emit(Room.onActorEnter, {room: this, prevRoom: prevRoom, actor: actor});
+    }
+
+    /**
+     * Remove the given Player from the room. Does nothing if they're not in the room.
+     * @param {Player} actor The player to remove from the room.
+     * @param {(Room|null)} nextRoom The Room the Player is leaving to, if any.
+     */
+    removeActor(actor, nextRoom = null)
+    {
+        let index = this.actors.findIndex(p => p === actor);
+
+        if (index != -1)
+        {
+            actor.room = null;
+            this.actors.splice(index, 1);
+
+            // If the next Room isn't set, emit the player left event now.
+            // Otherwise, it will be emitted when the player joins the new room
+            // to maintain consistency in the state of the Player (the Player
+            // shouldn't be in a null room when the event handlers are called,
+            // unless the player is logging out and therefore should not be put
+            // into another room).
+            if (!nextRoom)
+                this.emit(Room.onActorLeave, {room: this, nextRoom: nextRoom, actor: actor});
+        }
+    }
+
+    /**
+     * Broadcast a message to every Player in this Room.
+     * @param {string} message The message to broadcast.
+     */
+    broadcast(message)
+    {
+        this.actors.forEach
+        (
+            a =>
+            {
+                if (a.connection)
+                {
+                    renderLine(a.connection, message);
+                }
+            }
+        );
+    }
+
+    /**
+     * Broadcast a message to every Player in this Room except for the given Player.
+     * @param {Player} excludedPlayer The Player who won't receive the message.
+     * @param {string} message The message to broadcast.
+     */
+    broadcastExceptTo(excludedPlayer, message)
+    {
+        this.actors.forEach
+        (
+            a =>
+            {
+                if (a.connection &amp;&amp; a != excludedPlayer)
+                {
+                    renderLine(a.connection, message);
+                }
+            }
+        );
+    }
+}
+
+/**
+ * Fired when an Actor enters a Room.
+ * @event Room#onActorEnter
+ * @type {object}
+ * @property {Room} room The Room that was entered.
+ * @property {(Room|null)} prevRoom The Room that was left, or null if the Actor just logged in.
+ * @property {Actor} actor The Actor.
+ */
+Room.onActorEnter = 'actorEntered';
+
+/**
+ * Fired when an Actor leaves a Room.
+ * @event Room#onActorLeave
+ * @type {object}
+ * @property {Room} room The Room that was left.
+ * @property {(Room|null)} nextRoom The Room that the Actor is leaving for, or null if the Actor logged out.
+ * @property {Actor} actor The Actor.
+ */
+Room.onActorLeave = 'actorLeft';
+
+module.exports.Room = Room;
+module.exports.directions = directions;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Actor.html">Actor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="DialogueState.html">DialogueState</a></li><li><a href="FormState.html">FormState</a></li><li><a href="GameObject.html">GameObject</a></li><li><a href="Node.html">Node</a></li><li><a href="NPC.html">NPC</a></li><li><a href="Player.html">Player</a></li><li><a href="Room.html">Room</a></li><li><a href="RoomState.html">RoomState</a></li><li><a href="Trie.html">Trie</a></li><li><a href="UserState.html">UserState</a></li></ul><h3>Events</h3><ul><li><a href="Connection.html#event:onDisconnect">onDisconnect</a></li><li><a href="Player.html#event:onLogin">onLogin</a></li><li><a href="Player.html#event:onLogout">onLogout</a></li><li><a href="Room.html#event:onActorEnter">onActorEnter</a></li><li><a href="Room.html#event:onActorLeave">onActorLeave</a></li></ul><h3>Global</h3><ul><li><a href="global.html#commandList">commandList</a></li><li><a href="global.html#directions">directions</a></li><li><a href="global.html#executeCommand">executeCommand</a></li><li><a href="global.html#findByUsername">findByUsername</a></li><li><a href="global.html#init">init</a></li><li><a href="global.html#parseCommand">parseCommand</a></li><li><a href="global.html#searchForCommand">searchForCommand</a></li><li><a href="global.html#searchForNPC">searchForNPC</a></li><li><a href="global.html#searchForObject">searchForObject</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.3</a> on Thu Feb 20 2020 08:33:38 GMT-0500 (Eastern Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

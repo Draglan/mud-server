@@ -1,0 +1,54 @@
+To start with, I want to make a really basic MUD server as a PoC. It should have
+the following basic features:
+
+ * I can create a character.
+  * I can choose my character's name.
+ * I can login as a character.
+  * I am prompted for my character's name and password.
+ * I can move in four directions: N, E, S, W
+ * Upon entering a room, I receive a description of that room,
+   a list of the neighboring rooms, and a list of the other players
+   in that room.
+ * When someone enters or leaves a room, the players in that room
+   are notified.
+
+ * Players can re-look at the room they're in by using the 'look'
+   command.
+
+ * Players can send a chat message to other players in the room
+   using the 'say' command.
+
+ * Similarly, players can emote with the 'emote' command.
+
+ * Rooms can have NPCs. NPCs can move from room to room like players,
+   along with the appropriate notifications.
+
+ * Players should be able to tell NPCs and other players apart.
+
+ * Players can 'look' at NPCs.
+
+ * NPCs have dialogue with branching dialogue options.
+  * The player can talk to an NPC with the 'talk' command.
+  * The player is presented with the dialogue and the list of responses.
+    The player can then select which one they want, leading to another
+    dialogue and set of responses, etc.
+  * If an NPC wants to move to another room while in dialogue, the 
+    dialogue "session" should end, with an optional "goodbye" message
+    from the NPC.
+
+ * Rooms can have objects.
+  * Objects have a name and description.
+  * Players can look at objects using the 'look' command.
+  * Objects aren't explicitly listed; they should be implied from the
+    room's description.
+
+------------------------
+
+Combat
+--
+
+Combat will be turn-based and will support multiple vs. multiple combat.
+
+Players can group up into parties and fight together, or fight each other.
+
+Players can have 

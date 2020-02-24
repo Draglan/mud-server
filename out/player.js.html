@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: player.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: player.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { database, newId, writeDatabase } = require('./database');
+const { roomProvider, directions } = require('./room');
+const { Connection } = require('./connection');
+const EventEmitter = require('events');
+
+/**
+ * Represents a player in the game world.
+ */
+class Player extends EventEmitter
+{
+    constructor(id, username, connection)
+    {
+        super();
+        this.id         = id;
+        this.username   = username;
+        this.connection = connection;
+        this.room       = null;
+    }
+
+    /**
+     * Move the Player to the given room.
+     * @param {Room} room The room to move to.
+     */
+    moveToRoom(room)
+    {
+        room.addPlayer(this);
+    }
+
+    /**
+     * Move in a given direction.
+     * @param {string} direction The direction to move in.
+     * @returns {boolean} true if the Player could move, false otherwise.
+     */
+    moveInDirection(direction)
+    {
+        if (this.room &amp;&amp; direction in directions &amp;&amp; direction in this.room.exits)
+        {
+            this.moveToRoom(this.room.exits[direction]);
+            return true;
+        }
+        return false;
+    }
+}
+
+/**
+ * Fired when a Player logs out.
+ * @event Player#onLogout
+ * @type {Player}
+ * @param {Player} player The Player that logged out.
+ */
+Player.onLogout = 'playerLogout';
+
+/**
+ * Fired when a Player logs in.
+ * @event Player#onLogin
+ * @type {Player}
+ * @param {Player} player The Player that logged in.
+ */
+Player.onLogin  = 'playerLogin';
+
+class PlayerProvider
+{
+    constructor(db)
+    {
+        this.db = db;
+        this.activePlayers = [];
+    }
+
+    authenticate(username, password, connection)
+    {
+        let entry = this.db.accounts.find((acc) => acc.username.toLowerCase() === username.toLowerCase() &amp;&amp; acc.password === password);
+        if (entry &amp;&amp; !this.isPlayerOnline(entry.id))
+        {
+            let room = roomProvider.findRoomById(entry.roomId);
+            let player = new Player(entry.id, entry.username, connection);
+            
+            if (room)
+            {
+                this.loginPlayer(player, room);
+                return player;
+            }
+        }
+        return false;
+    }
+
+    newPlayer(username, password, connection)
+    {
+        if (!this.isUsernameTaken(username))
+        {
+            let entry = 
+            {
+                id: newId(this.db.accounts),
+                username: username,
+                password: password,
+                roomId: 1
+            };
+
+            this.db.accounts.push(entry);
+            writeDatabase();
+
+            let player = new Player(entry.id, entry.username, connection);
+            let entryRoom = roomProvider.findRoomById(1);
+
+            if (entryRoom)
+            {
+                this.loginPlayer(player, entryRoom);
+                return player;
+            }
+        }
+
+        return false;
+    }
+
+    loginPlayer(player, room)
+    {
+        room.addPlayer(player);
+        this.activePlayers.push(player);
+        
+        // Automatically remove the player when they disconnect.
+        player.connection.once(Connection.onDisconnect, _ => this.logoutPlayer(player));
+
+        player.emit(Player.onLogin, player);
+        console.log(`${player.username} logged in.`);
+    }
+
+    logoutPlayer(player)
+    {
+        let index = this.activePlayers.findIndex(p => p === player);
+
+        if (index != -1)
+        {
+            if (player.room)
+                player.room.removePlayer(player);
+
+            this.activePlayers.splice(index, 1);
+            player.emit(Player.onLogout, player);
+
+            console.log(`${player.username} logged out.`);
+        }
+    }
+
+    isUsernameTaken(username)
+    {
+        return !!this.db.accounts.find(acc => acc.username.toLowerCase() === username.toLowerCase());
+    }
+
+    isPlayerOnline(uid)
+    {
+        return !!this.activePlayers.find(p => p.id === uid);
+    }
+}
+
+
+module.exports.Player = Player;
+module.exports.playerProvider = new PlayerProvider(database);</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Connection.html">Connection</a></li><li><a href="FormState.html">FormState</a></li><li><a href="Player.html">Player</a></li><li><a href="Room.html">Room</a></li><li><a href="RoomState.html">RoomState</a></li><li><a href="UserState.html">UserState</a></li></ul><h3>Events</h3><ul><li><a href="Connection.html#event:onDisconnect">onDisconnect</a></li><li><a href="Player.html#event:onLogin">onLogin</a></li><li><a href="Player.html#event:onLogout">onLogout</a></li><li><a href="Room.html#event:onPlayerEnter">onPlayerEnter</a></li><li><a href="Room.html#event:onPlayerLeave">onPlayerLeave</a></li></ul><h3>Global</h3><ul><li><a href="global.html#directions">directions</a></li><li><a href="global.html#wordWrap">wordWrap</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.3</a> on Thu Feb 13 2020 12:11:00 GMT-0500 (Eastern Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
