@@ -374,7 +374,7 @@ class DialogueState extends UserState
     {
         super(conn);
         this.npc = npc;
-        this.currentIndex = npc.dialogue.firstIndex;
+        this.currentIndex = npc.dialogue.firstIndex || '';
     }
 
     // Prompt at the start
@@ -405,6 +405,12 @@ class DialogueState extends UserState
     handleInput(input)
     {
         let branch = this.npc.dialogue[this.currentIndex];
+        if (!branch) {
+            renderLine(this.connection, `${this.npc.name} is done talking.`);
+            this.connection.popState();
+            return;
+        }
+
         input = parseInt(input, 10);
 
         // Check for invalid input
@@ -432,14 +438,20 @@ class DialogueState extends UserState
      */
     prompt()
     {
+        let branch = this.npc.dialogue[this.currentIndex];
+        if (!branch) {
+            renderLine(this.connection, `${this.npc.name} doesn't want to talk.`);
+            this.connection.popState();
+            return;
+        }
+
         renderLine(this.connection);
         renderLine(this.connection, `${this.npc.name}:`, themes.npcName);
 
-        let branch = this.npc.dialogue[this.currentIndex];
         renderLine(this.connection, branch.text);
         renderLine(this.connection);
 
-        if (branch.responses)
+        if (branch.responses && branch.responses.length > 0)
         {
             branch.responses.forEach(
             (r, index) =>

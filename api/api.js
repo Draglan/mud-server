@@ -2,7 +2,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
+const cors = require('cors');
 const { accountProvider, accountRoles } = require('../providers/account-provider');
+const {ObjectId} = require('mongodb');
 const app = express();
 const port = 8080;
 
@@ -15,14 +17,9 @@ function init(database)
 }
 
 // Enable CORS.
-app.use((req, res, next) => 
-    {
-        res.header('Access-Control-Allow-Origin', 'localhost');
-        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-        next();   
-    }
-);
+app.use(cors());
 
+// Parse JSON requests
 app.use(bodyParser.json());
 
 // Check for JSON syntax errors.
@@ -33,7 +30,7 @@ app.use((err, req, res, next) =>
         else
             next();
     }
-)
+);
 
 /**
  * Check that the request body has all of the required parameters.
@@ -92,13 +89,32 @@ function checkAllowedParams(body, allowed)
  * @param {Response} res The response object.
  * @param {Function} callback Called for each entry before they are sent to the client.
  */
-function getAll(collectionName, res, callback = null)
+async function getAll(collectionName, res, options = {}, callback = null)
 {
-    let cursor = db.collection(collectionName).find({});
+    let nPerPage     = options.itemsPerPage || 25;
+    let page         = options.page         || 1;
+    let sortBy       = options.sortBy       || '_id';
+    let filter       = {};
+    let isAscending  = options.isAscending === undefined ? true : options.isAscending;
+
+    let sortOption = {};
+    sortOption[sortBy] = isAscending ? 1 : -1;
+
+    if (options.filter) filter = {$text: {$search: options.filter, $caseSensitive: false}};
+
+    let cursor = db.collection(collectionName)
+        .find(filter)
+        .collation({strength: 2, locale: 'en'})
+        .sort(sortOption)
+        .skip(nPerPage * (page - 1))
+        .limit(nPerPage);
+
+    let count = await cursor.count(false);
+
     cursor.toArray().then(results => 
         {
             if (callback) results.forEach(entry => callback(entry));
-            res.status(200).json(results);
+            res.status(200).json({results, totalCount: count});
         }
     );
 }
@@ -134,7 +150,7 @@ function getByParameter(collectionName, filter, res, callback = null)
  * @param {Response} res The response object.
  * @param {string[]} required The list of required parameters.
  */
-function post(collectionName, req, res, required, allowed)
+async function post(collectionName, req, res, required, allowed, validator = null)
 {
     // Make sure the request has all of the required parameters.
     let missingParams = checkRequiredParams(req.body, required);
@@ -148,6 +164,15 @@ function post(collectionName, req, res, required, allowed)
 
     if (!notAllowed.ok)
         return res.status(400).json({paramsNotAllowed: notAllowed.notAllowed});
+
+    if (validator)
+    {
+        let result = await validator(req.body);
+        if (!result.ok)
+        {
+            return res.status(400).json({error: result.error});
+        }
+    }
 
     // Insert the object into the collection.
     db.collection(collectionName).insertOne(req.body).then(
@@ -171,7 +196,7 @@ function post(collectionName, req, res, required, allowed)
  * @param {Response} res The response object.
  * @param {string[]} allowed The list of parameters that the client is allowed to modify.
  */
-function put(collectionName, filter, req, res, allowed)
+async function put(collectionName, filter, req, res, allowed, validator = null)
 {
     if (!req.body)
     {
@@ -183,6 +208,16 @@ function put(collectionName, filter, req, res, allowed)
 
     if (!notAllowed.ok)
         return res.status(400).json({paramsNotAllowed: notAllowed.notAllowed});
+
+    // Run the custom validation function for this request.
+    if (validator) 
+    {
+        let result = await validator(req.body);
+        if (!result.ok)
+        {
+            return res.status(400).json({error: result.error});
+        }
+    }
 
     // Update the entry, or return a 404 if the entry doesn't exist.
     db.collection(collectionName).updateOne(filter, {$set: {...req.body}})
@@ -226,6 +261,46 @@ function deleteEntry(collectionName, filter, res)
         );
 }
 
+/**
+ * Check to see if there are entries in the database corresponding to each of the
+ * provided name IDs. Returns an array containing all of the name IDs that were missing.
+ * @param {string} collectionName The name of the collection to check against.
+ * @param {string[]} nameIds An array of the name IDs that you want to check for existence.
+ * @returns {string[]} A list of the name IDs that were missing from the collection.
+ */
+async function checkForExistence(collectionName, nameIds)
+{
+    let entries = await db.collection(collectionName).find({nameId: {$in: nameIds}});
+    entries = await entries.toArray();
+    let missing = [];
+
+    nameIds.forEach(id => 
+        {
+            if (!entries.find(entry => entry.nameId === id))
+            {
+                missing.push(id);
+            }
+        }
+    );
+
+    return missing;
+}
+
+async function validateRoom(room)
+{
+    // Check that all exits exist.
+    let exitIds = [];
+    for (direction in room.exits)
+    {
+        exitIds.push(room.exits[direction]);
+    }
+
+    let missing = await checkForExistence('rooms', exitIds);
+    missing = missing.concat(await checkForExistence('npcs', room.npcs));
+
+    return {ok: missing.length === 0, nullReferences: missing};
+}
+
 // Auth API
 //
 
@@ -245,9 +320,9 @@ app.post('/api/auth',
         // On success, respond with a JWT to authorize the client.
         jwt.sign
         (
-            {}, 
+            {username: account.username}, 
             secret, 
-            { algorithm: 'RS256' },
+            { algorithm: 'RS256', expiresIn: 7200 },
             (err, token) =>
             {
                 if (err) return res.sendStatus(500);
@@ -289,13 +364,30 @@ app.use((req, res, next) =>
     }
 );
 
+// Get options
+app.use((req, res, next) => 
+    {
+        let options = 
+        {
+            sortBy: req.query.sortBy || undefined,
+            isAscending: req.query.order != 'desc',
+            itemsPerPage: req.query.itemsPerPage ? +req.query.itemsPerPage : undefined,
+            page: req.query.page || undefined,
+            filter: req.query.filter || undefined
+        };
+
+        req.options = options;
+        next();
+    }
+);
+
 // Account API
 //
 
 app.get('/api/accounts', 
     (req, res) =>
     {
-        getAll('accounts', res, (entry) => delete entry.password);
+        getAll('accounts', res, {}, (entry) => delete entry.password);
     }
 );
 
@@ -350,6 +442,12 @@ app.put('/api/accounts/:username',
         let account = await accountProvider.findByUsername(req.params.username);
         if (!account) return res.sendStatus(404);
 
+        // Make sure the requested room exists.
+        if (req.body.roomId) {
+            let missing = await checkForExistence('rooms', [req.body.roomId]);
+            if (missing.length > 0) return res.status(400).json({error: `No room with nameId '${req.body.roomId}'.`});
+        }
+
         // Change the password if requested. Then delete the password entry
         // from the request body so we don't overwrite the hash.
         if (req.body.password)
@@ -383,7 +481,7 @@ app.delete('/api/accounts/:username',
 app.get('/api/rooms',
     (req, res) =>
     {
-        getAll('rooms', res);
+        getAll('rooms', res, req.options);
     }
 );
 
@@ -394,18 +492,81 @@ app.get('/api/rooms/:id',
     }
 );
 
+app.get('/api/rooms/id/:id', (req, res) => 
+    {
+        if (req.params.id.toString().length != 24)
+            return res.sendStatus(404);
+        getByParameter('rooms', {_id: new ObjectId(req.params.id)}, res);
+    }
+);
+
+app.get('/api/rooms/exits/:id',
+    async (req, res) =>
+    {
+        // 1. Get the Db entry associated with the requested ID
+        // 2. Get the list of all of the IDs of its exits
+        // 3. Retrieve all of those rooms and return them in an array
+
+        try 
+        {
+            let room = await db.collection('rooms').findOne({nameId: req.params.id});
+            let exits = await db.collection('rooms')
+            .find
+            (
+                {
+                    $or:
+                    [
+                        {nameId: room.exits.north},
+                        {nameId: room.exits.east},
+                        {nameId: room.exits.south},
+                        {nameId: room.exits.west},
+                        {nameId: room.exits.up},
+                        {nameId: room.exits.down},
+                    ]
+                }
+            );
+            
+            return res.status(200).json(await exits.toArray());
+        }
+        catch (err)
+        {
+            return res.sendStatus(404);
+        }
+    }    
+);
+
 app.post('/api/rooms',
     (req, res) =>
     {
         let required = ['nameId', 'name', 'description', 'exits', 'npcs', 'objects'];
-        post('rooms', req, res, required, required);
+        post('rooms', req, res, required, required,
+        async room => 
+            {
+                let result = await validateRoom(room);
+                if (!result.ok)
+                {
+                    return {ok: false, error: `IDs that don't reference anything: ${result.nullReferences}`};
+                }
+                return {ok: true, error: ''};
+            }
+        );
     }
 );
 
 app.put('/api/rooms/:id', (req, res) => 
     {
         let allowed = ['name', 'description', 'objects', 'npcs', 'exits'];
-        put('rooms', {nameId: req.params.id}, req, res, allowed);
+        put('rooms', {nameId: req.params.id}, req, res, allowed, 
+            async room => 
+            {
+                let result = await validateRoom(room);
+                if (!result.ok)
+                {
+                    return {ok: false, error: `IDs that don't reference anything: ${result.nullReferences}`};
+                }
+                return {ok: true, error: ''};
+            }
+        );
     }
 );
 
@@ -420,13 +581,21 @@ app.delete('/api/rooms/:id', (req, res) =>
 
 app.get('/api/npcs', (req, res) => 
     {
-        getAll('npcs', res);
+        getAll('npcs', res, req.options);
     }
 );
 
 app.get('/api/npcs/:id', (req, res) => 
     {
         getByParameter('npcs', {'nameId': req.params.id}, res);
+    }
+);
+
+app.get('/api/npcs/id/:id', (req, res) =>
+    {
+        if (req.params.id.toString().length != 24)
+            return res.sendStatus(404);
+        getByParameter('npcs', {_id: new ObjectId(req.params.id)}, res);
     }
 );
 
@@ -441,7 +610,7 @@ app.post('/api/npcs', (req, res) =>
 
 app.put('/api/npcs/:id', (req, res) => 
     {
-        let allowed = ['name', 'description', 'script', 'dialogueTree'];
+        let allowed = ['name', 'nameId', 'description', 'script', 'dialogueTree'];
         put('npcs', {nameId: req.params.id}, req, res, allowed);
     }
 );

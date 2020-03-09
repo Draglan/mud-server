@@ -47,7 +47,7 @@ class PlayerProvider
             let player = new Player(entry._id, entry.username, connection);
 
             // Find their room.
-            let room = await roomProvider.findById(entry.roomId);
+            let room = await roomProvider.findByNameId(entry.roomId);
 
             // If the room exists, log them in; otherwise, the authentication has failed.
             if (room) this.loginPlayer(player, room);
@@ -73,7 +73,7 @@ class PlayerProvider
         if (!account) return null;
 
         let player = new Player(account._id, username, connection);
-        let room = await roomProvider.findById(account.roomId);
+        let room = await roomProvider.findByNameId(account.roomId);
         if (!room) return null;
 
         this.loginPlayer(player, room);

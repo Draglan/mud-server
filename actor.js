@@ -22,25 +22,6 @@ class Actor extends EventEmitter
         this.name        = name;
         this.description = description;
         this.room        = null;
-
-        // Stats
-        //
-
-        this.maxHp        = 100;
-        this.hp           = this.maxHp;
-        this.maxMana      = 100;
-        this.mana         = this.maxMana;
-        this.maxStamina   = 100;
-        this.stamina      = this.maxStamina;
-        this.attack       = 0;
-        this.defense      = 0;
-        this.spellPower   = 0;
-        this.spellDefense = 0;
-        this.level        = 1;
-        this.maxExp       = Actor.getMaxExp(this.level);
-        this.currentExp   = 0;
-
-        this.equipment = {};
     }
 
     /**

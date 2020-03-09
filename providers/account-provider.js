@@ -20,7 +20,7 @@ const accountRoles =
 /**
  * Use this to authenticate, retrieve, create, and modify
  * user accounts. To create a Player object that represents
- * an in-game player, @see Player
+ * an in-game player, @see PlayerProvider
  */
 class AccountProvider
 {
@@ -38,7 +38,7 @@ class AccountProvider
      */
     async authenticate(username, password)
     {
-        let account = await this.collection.findOne({username: username});
+        let account = await this.collection.findOne({username: username}, {'collation': {'locale': 'en', 'strength': 2}});
         if (!account) return null;
 
         let valid = await comparePassword(password, account.password);

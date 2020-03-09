@@ -11,11 +11,14 @@ initialize().then
         //
         const server = net.createServer
         (
-            socket =>
+            async socket =>
             {
                 const { LoginOrRegisterForm } = require('./forms');
                 const { Connection } = require('./connection');
                 const { LineTransform } = require('./myTransforms');
+                const { roomProvider } = require('./providers/room-provider');
+
+                await roomProvider.loadAllRooms();
 
                 let input = socket.pipe(new LineTransform());
                 let conn = new Connection(input, socket);
@@ -50,6 +53,12 @@ function initialize()
         {
             // Initialize all of the provider modules.
             accountProvider.init(database)
+                .then(_ => 
+                    {
+                        const npcProvider = require('./providers/npc-provider');
+                        return npcProvider.init(database);
+                    }
+                )
                 .then(_ =>
                     {
                         const roomProvider = require('./providers/room-provider');
@@ -60,12 +69,6 @@ function initialize()
                     {
                         const playerProvider = require('./providers/player-provider');
                         return playerProvider.init(database)
-                    }
-                )
-                .then(_ => 
-                    {
-                        const npcProvider = require('./providers/npc-provider');
-                        return npcProvider.init(database);
                     }
                 )
                 .then(_ => 

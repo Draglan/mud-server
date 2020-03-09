@@ -29,9 +29,9 @@ class NPCProvider
         {
             let npc = new NPC(entry.nameId, entry.name, entry.description);
 
-            npc.dialogueTree = entry.dialogueTree;
-            npc.goodbyeMsg   = entry.goodbyeMsg;
-            npc.script       = entry.script;
+            npc.dialogue   = entry.dialogueTree || {};
+            npc.goodbyeMsg = entry.goodbyeMsg;
+            npc.script     = entry.script;
 
             npc.startScript();
             this.activeNPCs.push(npc);

@@ -1,4 +1,7 @@
-db = connect('localhost:27017/mudserver');
+conn = new Mongo('localhost:27017');
+db = conn.getDB('admin');
+db.auth('admin', 'admin');
+db = conn.getDB('mudserver');
 
 // Create the Rooms collection.
 db.createCollection('rooms', {
@@ -8,6 +11,7 @@ db.createCollection('rooms', {
         properties: {
             nameId: {
                 bsonType: "string",
+                pattern: "^[a-zA-Z_][a-zA-Z0-9_]*$"
             },
             name: {
                 bsonType: "string",
@@ -38,6 +42,13 @@ db.createCollection('rooms', {
 
 db.rooms.createIndex({nameId: -1}, {unique: true});
 
+db.rooms.createIndex({
+     nameId: "text",
+     name: "text",
+     description: "text"
+    }
+);
+
 // Create the Accounts collection.
 db.createCollection('accounts', {
     validator: {$jsonSchema: {
@@ -45,7 +56,8 @@ db.createCollection('accounts', {
         required: ["username", "password", "roomId", "creationDate", "role"],
         properties: {
             username: {
-                bsonType: "string"
+                bsonType: "string",
+                pattern: "^[a-zA-Z_][a-zA-Z0-9_]*$"
             },
             password: {
                 bsonType: "string"
@@ -63,7 +75,8 @@ db.createCollection('accounts', {
     }}
 });
 
-db.accounts.createIndex({username: -1}, {unique: true});
+db.accounts.createIndex({username: -1}, {unique: true, collation: { locale: 'en', strength: 2 }});
+db.accounts.createIndex({username: 'text'});
 
 // Create the Objects collection.
 db.createCollection('objects', {
@@ -72,7 +85,8 @@ db.createCollection('objects', {
         required: ["nameId", "name", "description"],
         properties: {
             nameId: {
-                bsonType: "string"
+                bsonType: "string",
+                pattern: "^[a-zA-Z_][a-zA-Z0-9_]*$"
             },  
             name: {
                 bsonType: "string"
@@ -88,6 +102,11 @@ db.createCollection('objects', {
 });
 
 db.objects.createIndex({nameId: -1}, {unique: true});
+db.objects.createIndex({
+    nameId: 'text',
+    name: 'text',
+    description: 'text'
+});
 
 // Create the NPC collection.
 db.createCollection('npcs', {
@@ -95,7 +114,8 @@ db.createCollection('npcs', {
         required: ["nameId", "name", "description"],
         properties: {
             nameId: {
-                bsonType: "string"
+                bsonType: "string",
+                pattern: "^[a-zA-Z_][a-zA-Z0-9_]*$"
             },
             name: {
                 bsonType: "string"
@@ -114,3 +134,10 @@ db.createCollection('npcs', {
 });
 
 db.npcs.createIndex({nameId: -1}, {unique: true});
+db.npcs.createIndex({
+    nameId: 'text',
+    name: 'text',
+    description: 'text'
+});
+
+db.logout();

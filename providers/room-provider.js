@@ -1,6 +1,7 @@
 const { Room } = require('../room');
 const { npcProvider } = require('./npc-provider');
 const { gameObjectProvider } = require('./gameobject-provider');
+const mongodb = require('mongodb');
 
 class RoomProvider
 {
@@ -12,10 +13,10 @@ class RoomProvider
 
     /**
      * Return a Room given its ID. Returns null if no such room exists.
-     * @param {string} id The ID of the Room to find.
+     * @param {string} id The name ID of the Room to find.
      * @returns {(Promise<Room>|null)} The Room or null.
      */
-    async findById(id)
+    async findByNameId(id)
     {
         if (id in this.rooms)
         {
@@ -24,27 +25,61 @@ class RoomProvider
         }
         else
         {
-            // Otherwise, create the room from the database.
-            let entry = await this.collection.findOne({nameId: id});
-            if (entry)
+            return this.findByParameter({nameId: id});
+        }
+    }
+
+    /**
+     * Find a room given its ID.
+     * @param {string} id The Room's ID.
+     * @returns {(Promise<Room>|Promise<null>)}
+     */
+    async findById(id)
+    {
+        return this.findByParameter({_id: id});
+    }
+
+    /**
+     * Find the first room in the database that has the property defined by param.
+     * @param {object} param A key-value pair identifying the room to find.
+     * @returns {(Promise<Room>|Promise<null>)}
+     */
+    async findByParameter(param)
+    {
+        // Find the room's entry in the database.
+        let entry = await this.collection.findOne(param);
+
+        if (entry)
+        {
+            // If the room is already loaded, return the loaded room.
+            if (entry.nameId in this.rooms) 
+            {
+                return this.rooms[entry.nameId];
+            }
+            else
             {
                 let room = new Room(entry.nameId, entry.name, entry.description);
                 this.assignExitsOfRoom(room, entry.exits);
-                //this.assignNPCsOfRoom(room, entry.npcs);
+                this.assignNPCsOfRoom(room, entry.npcs);
                 //this.assignObjectsOfRoom(room, entry.objects);
 
                 this.rooms[entry.nameId] = room;
                 return room;
             }
-
-            return null;
         }
+
+        return null;
+    }
+
+    async loadAllRooms()
+    {
+        this.findByParameter({});
     }
 
     /**
      * Load the exits of a given Room and assign them to the Room.
      * @param {Room} room The Room to load the exits for.
-     * @param {object} exitIds A map of direction to roomId. Ex: exitIds['north'] === 'someRoom';
+     * @param {object} exitIds A map of direction to roomId. Ex: exitIds['north'] === '8eecbf1...';
      */
     assignExitsOfRoom(room, exitIds)
     {
@@ -52,7 +87,7 @@ class RoomProvider
         for (let direction in exitIds)
         {
             let exitId = exitIds[direction];
-            promises.push(this.findById(exitId).then(r => room.exits[exitId] = r));
+            promises.push(this.findByNameId(exitId).then(r => room.exits[direction] = r));
         }
 
         return Promise.all(promises);
@@ -68,9 +103,16 @@ class RoomProvider
         
     }
 
-    assignNPCsOfRoom(room, npcs) 
+    async assignNPCsOfRoom(room, npcs) 
     {
-        
+        npcs.forEach
+        (
+            async id => 
+            {
+                let npc = await npcProvider.makeById(id);
+                room.addActor(npc);
+            }
+        );
     }
 }
 
